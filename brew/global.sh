@@ -18,15 +18,6 @@ else
     ok "OK"
 fi
 
-# phantomjs
-if which phantomjs &> /dev/null; then
-    msg_checking "phantomjs"
-else
-    msg_install "phantomjs" "brew install phantomjs"
-    brew install phantomjs
-    msg_ok "OK"
-fi
-
 # mongo
 if which mongod &> /dev/null; then
     msg_checking "mongodb"
