@@ -15,8 +15,6 @@ brew cleanup
 # browsers
 brew cask install firefox 2> /dev/null
 brew cask install google-chrome 2> /dev/null
-brew cask install opera 2> /dev/null
-brew cask install opera-neon 2> /dev/null
 
 # dev apps
 brew cask install imageoptim 2> /dev/null
@@ -29,9 +27,4 @@ brew cask install vlc 2> /dev/null
 brew cask install transmission 2> /dev/null
 brew cask install spotify 2> /dev/null
 brew cask install franz 2> /dev/null
-brew cask install skype 2> /dev/null
 brew cask install coconutbattery 2> /dev/null
-brew cask install screenhero 2> /dev/null
-brew cask install zoomus 2> /dev/null
-brew cask install stremio 2> /dev/null
-brew cask install handbrake 2> /dev/null
