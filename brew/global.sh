@@ -9,15 +9,6 @@ else
     ok "OK"
 fi
 
-# node
-if which node &> /dev/null; then
-    msg_checking "node"
-else
-    msg_install "Node" "brew install node"
-    brew install node
-    ok "OK"
-fi
-
 # mongo
 if which mongod &> /dev/null; then
     msg_checking "mongodb"
