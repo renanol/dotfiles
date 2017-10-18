@@ -6,9 +6,6 @@ brew tap homebrew/science # science
 brew tap caskroom/fonts # fonts
 brew tap caskroom/versions
 
-# langs
-brew install python # python
-
 # remove outdated versions from the cellar
 brew cleanup
 
