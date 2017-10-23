@@ -5,7 +5,7 @@
 ### Installation
 
 ```bash
-git clone https://github.com/willianjusten/dotfiles.git && cd dotfiles
+git clone https://github.com/renanrboliveira/dotfiles.git && cd dotfiles
 
 source bootstrap.sh
 
