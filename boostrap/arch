@@ -41,9 +41,9 @@ AUR_LOCAL_SCRIPT=/opt/aur-pkgs
 AUR_SCRIPT=/mnt/$AUR_LOCAL_SCRIPT
 KEYMAP="br-abnt2"
 
-echo -e "${PURPLE}Ranking mirrors${RESET}"
-
-echo "Server = http://linorg.usp.br/archlinux/$repo/os/$arch" > mirrorlist.$COUNTRY
+eecho -e "${PURPLE}Ranking mirrors${RESET}"
+wget "https://www.archlinux.org/mirrorlist/?country=$COUNTRY" -O mirrorlist.$COUNTRY
+sed -i "s/#Server/Server/" mirrorlist.$COUNTRY
 cp mirrorlist.$COUNTRY /etc/pacman.d/mirrorlist
 
 pacman -Qi pacman-contrib &>/dev/null
