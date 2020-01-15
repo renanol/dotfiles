@@ -11,12 +11,12 @@ DEV_PACKAGES="docker aws-cli jq clang ghc stack cmake python-pip python-virtuale
 
 GRAPHICAL_PACKAGES="lightdm lightdm-gtk-greeter gnome-keyring networkmanager gvfs-mtp awesome xfce4 xfce4-goodies tilix"
 APPS_PACKAGES="zathura zathura-pdf-mupdf zathura-djvu zathura-ps chromium mpv inkscape deluge calibre"
-THEMES="oxygen numix-gtk-theme"
+THEMES="oxygen"
 
 ## AUR packages
 AUR_HELPER="yay"
 
-AUR_PACKAGES="slack-desktop chromium-widevine interception-tools interception-caps2esc albert oh-my-zsh-git"
+AUR_PACKAGES="albert"
 AUR_THEMES=""
 
 # Packages that should be installed before most packages, since they may create a dependency problem
