@@ -1,0 +1,150 @@
+#!/bin/env bash
+
+# Vars
+PURPLE="\033[1;30;45m nu \033[1;35;49m "
+RESET="\033[0m"
+
+### Packages
+# Installed with pacstrap
+BASE_PACKAGES="base base-devel git openssh vim terminus-font nss-mdns zsh zsh-completions ntfs-3g intel-ucode os-prober cronie pkgstats"
+DEV_PACKAGES="docker aws-cli jq clang ghc stack cmake python-pip python-virtualenv python2-pip python2-virtualenv httpie markdown grml-zsh-config diff-so-fancy python-jedi python2-jedi"
+
+GRAPHICAL_PACKAGES="lightdm lightdm-gtk-greeter gnome-keyring networkmanager gvfs-mtp awesome xfce4 xfce4-goodies tilix"
+APPS_PACKAGES="zathura zathura-pdf-mupdf zathura-djvu zathura-ps chromium mpv inkscape deluge calibre"
+THEMES="oxygen numix-gtk-theme"
+
+## AUR packages
+AUR_HELPER="yay"
+
+AUR_PACKAGES="slack-desktop chromium-widevine interception-tools interception-caps2esc albert oh-my-zsh-git"
+AUR_THEMES=""
+
+# Packages that should be installed before most packages, since they may create a dependency problem
+FONT_PACKAGES="ttf-google-fonts-git nerd-fonts-complete ttf-ms-fonts"
+
+PACSTRAP="$BASE_PACKAGES $DEV_PACKAGES"
+PACKAGES="$GRAPHICAL_PACKAGES $APPS_PACKAGES $THEMES $AUR_PACKAGES $AUR_THEMES $EXTRA_PACKAGES $EXTRA_AUR_PACKAGES"
+
+PACKAGES="$PACKAGES xf86-input-synaptics xf86-input-evdev wpa_supplicant iw dialog tlp"
+
+VIDEO_DRIVERS="nvidia nvidia-utils nvidia-libgl opencl-nvidia libvdpau lib32-nvidia-utils lib32-nvidia-libgl lib32-opencl-nvidia lib32-libvdpau nvidia-settings"
+
+VIDEO_DRIVERS="$VIDEO_DRIVERS bumblebee mesa xf86-video-intel lib32-virtualgl"
+
+
+USRNAME=${USRNAME:-renanoliveira}
+HOSTNAME=${HOSTNAME:-dito}
+COUNTRY=${COUNTRY:-BR}
+HOME_DIR=/home/$USRNAME
+AUR_DIR=${AUR_DIR:-/opt/aur}
+AUR_LOCAL_SCRIPT=/opt/aur-pkgs
+AUR_SCRIPT=/mnt/$AUR_LOCAL_SCRIPT
+KEYMAP="br-abnt2"
+
+echo -e "${PURPLE}Ranking mirrors${RESET}"
+
+echo "Server = http://linorg.usp.br/archlinux/$repo/os/$arch" > mirrorlist.$COUNTRY
+cp mirrorlist.$COUNTRY /etc/pacman.d/mirrorlist
+
+pacman -Qi pacman-contrib &>/dev/null
+if [ $? -ne 0 ]; then
+  echo "Let's make sure you have rankmirrors installed (via pacman-contrib package)"
+  pacman -Sy
+  pacman -S pacman-contrib
+fi
+
+rankmirrors -n 6 mirrorlist.$COUNTRY > /etc/pacman.d/mirrorlist
+
+if [ $? -ne 0 ]; then
+  echo "Make sure you got an internet connection"
+  exit 1
+fi
+
+set -e
+echo -e "${PURPLE}Formatting disks${RESET}"
+
+if [ -z "$SKIP_DISK" ]; then
+  echo -e "o\nn\np\n\n\n+512M\nn\np\n\n\n\nw\n" | fdisk /dev/nvme0n1
+
+  echo -e "${PURPLE}Setting up cryptography${RESET}"
+  cryptsetup -y -v luksFormat /dev/nvme0n1p2
+  cryptsetup open /dev/nvme0n1p2 cryptroot
+  mkfs.ext4 /dev/mapper/cryptroot
+  mount /dev/mapper/cryptroot /mnt
+
+  echo -e "${PURPLE}Setting up boot directory${RESET}"
+  mkfs.fat -F32 /dev/nvme0n1p1
+  mkdir /mnt/boot
+  mount /dev/nvme0n1p1 /mnt/boot
+fi
+
+echo -e "${PURPLE}Bootstrapping packages${RESET}"
+pacstrap /mnt $PACKAGES
+cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
+
+echo -e "${PURPLE}Setting up $USRNAME${RESET}"
+arch-chroot /mnt groupadd -f docker
+arch-chroot /mnt groupadd -f bumblebee
+arch-chroot /mnt useradd -m -s /usr/bin/zsh -g users -G wheel,docker $USRNAME
+
+echo -e "${PURPLE}Gen fstab${RESET}"
+genfstab -U /mnt >> /mnt/etc/fstab
+
+echo -e "${PURPLE}Clock stuff${RESET}"
+arch-chroot /mnt rm -f /etc/localtime
+arch-chroot /mnt ln -s /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
+arch-chroot /mnt hwclock --systohc --utc
+
+if [ ! -z "$KEYMAP" ]; then
+  sed -i s/KEYMAP=uk/KEYMAP=$KEYMAP/ /mnt/etc/vconsole.conf
+fi
+arch-chroot /mnt locale-gen
+
+echo -e "${PURPLE}Locale stuff${RESET}"
+sed -i s/#en_US\.UTF-8/en_US.UTF-8/ /mnt/etc/locale.gen
+echo LANG=en_US.UTF-8 > /mnt/etc/locale.conf
+echo $HOSTNAME > /mnt/etc/hostname
+echo "127.0.0.1\t$HOSTNAME.localdomain\t$HOSTNAME" >> /mnt/etc/hosts
+
+echo -e "${PURPLE}Making vmlinuz${RESET}"
+sed -i "/^HOOKS/s/filesystems/encrypt filesystems/" /mnt/etc/mkinitcpio.conf
+arch-chroot /mnt mkinitcpio -p linux
+
+echo -e "${PURPLE}Set root password${RESET}"
+arch-chroot /mnt passwd
+
+echo -e "${PURPLE}Set $USRNAME password${RESET}"
+arch-chroot /mnt passwd $USRNAME
+
+echo -e "${PURPLE}Installing yaourt${RESET}"
+arch-chroot /mnt mkdir -p $AUR_DIR
+arch-chroot /mnt chown -R ${USERNAME}:users $AUR_DIR
+
+echo "" > $AUR_SCRIPT
+echo "pacman -Syy" >> $AUR_SCRIPT
+for package in $AUR_HELPER ; do
+    echo "sudo -u ${USERNAME} git clone http://aur.archlinux.org/${package}.git ${AUR_DIR}/$package" >> $AUR_SCRIPT
+    echo "cd ${AUR_DIR}/$package" >> $AUR_SCRIPT
+    echo "sudo -u ${USERNAME} makepkg -sic --noconfirm" >> $AUR_SCRIPT
+done
+arch-chroot /mnt chown ${USERNAME}:users $AUR_LOCAL_SCRIPT
+arch-chroot /mnt bash $AUR_LOCAL_SCRIPT
+
+echo -e "${PURPLE}Installing remaining packages${RESET}"
+echo "" > $INSTALL_SCRIPT
+echo "pacman -Sy" >> $INSTALL_SCRIPT
+echo "sudo -u ${USERNAME} yay -S --needed --noconfirm $FONT_PACKAGES" >> $INSTALL_SCRIPT
+echo "sudo -u ${USERNAME} yay -S --needed --noconfirm $PACKAGES $VIDEO_DRIVERS" >> $INSTALL_SCRIPT
+arch-chroot /mnt bash $INSTALL_LOCAL_SCRIPT
+
+echo -e "${PURPLE}Making vmlinuz${RESET}"
+sed -i "/^HOOKS/s/filesystems/encrypt lvm2 filesystems/" /mnt/etc/mkinitcpio.conf
+arch-chroot /mnt mkinitcpio -p linux
+
+
+# Fix sudoers files and grant proper permissions
+sed -i "s/\(%wheel ALL=(ALL) NOPASSWD: ALL\)$/# \1/" /mnt/etc/sudoers
+sed -i "s/^# \(%wheel ALL=(ALL) ALL\)$/\1/" /mnt/etc/sudoers
+
+echo -e "${PURPLE}Done!${RESET} Installation finished!"
+set +e
